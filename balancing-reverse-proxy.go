@@ -19,6 +19,7 @@ var (
 	flagAddress           = flag.String("address", ":8080", "address to bind this proxy")
 	flagTerminalResponses = flag.String("terminal-responses", "100,200,300,400", "HTTP statuses that are considered terminal (i.e., that endpoint's response is taken)")
 	flagParallelWorkers   = flag.Bool("parallel-workers", true, "when true, workers for endpoints start in parallel, else in sequence")
+	flagLogPrefix         = flag.String("log-prefix", "balancing-reverse-proxy", "prefix for log statements")
 )
 
 const (
@@ -40,6 +41,11 @@ func main() {
 	flag.Parse()
 	if *flagEndpoints == "" || flag.NArg() != 0 || *flagTerminalResponses == "" {
 		flag.Usage()
+	}
+
+	// Logging.
+	if *flagLogPrefix != "" {
+		log.SetPrefix(*flagLogPrefix + " ")
 	}
 
 	// Which of https://developer.mozilla.org/en-US/docs/Web/HTTP/Status indicate that an endpoint's response should be given to the caller?
