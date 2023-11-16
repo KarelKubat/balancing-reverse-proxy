@@ -1,6 +1,8 @@
 # balancing-reverse-proxy
 
 <!-- toc -->
+- [This is work in progress.](#this-is-work-in-progress)
+- [A simple test](#a-simple-test)
 <!-- /toc -->
 
 `balancing-reverse-proxy` is a reverse HTTP proxy, but one which allows to configure multiple endpoints (back ends). A request that arrives at the proxy is forwarded to all endpoints, and the first usable response is returned to the client.
