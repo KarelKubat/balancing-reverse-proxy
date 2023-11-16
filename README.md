@@ -9,9 +9,26 @@
 
 This setup is useful in situations where different HTTP servers exist (typically API servers), but which are "flakey" in their processing. To improve the chance that a "good" response is collected, a client can forward their request to `balancing-reverse-proxy`, which fans out to these HTTP servers. The client gets the first correct response.
 
-The "goodness" of an endpoint's response is determined by the status that an end point sends. The default is that any HTTP status in the 100's, 200's, 300's or 400's range is a valid outcome and is returned to the client. An endpoint's response is only discarded when the HTTP status is in the 500's range. This can be changed using the flag `-terminal-responses`. Run `balancing-reverse-proxy` without any arguments to see the supported flags.
+## Invocation
 
-## This is work in progress.
+### Minimal invocation
+
+`balancing-reverse-proxy` needs at least one flag: `-endpoints` (or shortended, `-e`). This is a comma-separated list of backends to call. Example: 
+
+- Imagine that an API that your client wants to consume is hosted on `https://one.com/apis`. There is a mirror at `https://two.com/public-apis`.
+- The endpoints flag then becomes: `-e https://one.com/apis,https://two.com/public-apis`
+
+### When does `balancing-reverse-proxy` return a response to the client?
+
+The "fitness" of an endpoint's response is determined by the status that an end point sends. The default is that any HTTP status in the 100's, 200's, 300's or 400's range is a valid outcome and is returned to the client. An endpoint's response is only discarded when the HTTP status is in the 500's range. This can be changed using the flag `-terminal-responses`.
+
+Imagine that some APIs are hosted on `https://one.com/apis`. There is a mirror at `https://two.com/public-apis` but it's incomplete: for some calls it will return a status 400 (not found). If that happens then `balancing-reverse-proxy` should **not** take that as a terminating response, but should wait what `one.com` returns. The flag then becomes: `-terminal-responses 100,200,300`.
+
+### Other options
+
+To see other flags, just start `balancing-reverse-proxy` without arguments. A list will be shown.
+
+## This is work in progress
 
 This version is a proof of concept. Future changes will include:
 
