@@ -17,7 +17,7 @@ This version is a proof of concept. Future changes will include:
 
 - Tests
 - Possibly better modularization
-- Better logging (this version logs all to `stdout`)
+- Better logging (this version logs all to `stdout`, maybe we need less logging)
 
 ## A simple test
 
