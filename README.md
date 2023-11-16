@@ -1,17 +1,13 @@
 # balancing-reverse-proxy
 
 <!-- toc -->
-- [Invocation](#invocation)
-  - [Minimal invocation](#minimal-invocation)
-  - [When does <code>balancing-reverse-proxy</code> return a response to the client?](#when-does-balancing-reverse-proxy-return-a-response-to-the-client)
-  - [Other options](#other-options)
-- [This is work in progress](#this-is-work-in-progress)
+- [This is work in progress.](#this-is-work-in-progress)
 - [A simple test](#a-simple-test)
 <!-- /toc -->
 
-`balancing-reverse-proxy` is a reverse HTTP proxy, but one which allows to configure multiple endpoints (back ends). A request that arrives at the proxy is forwarded to all endpoints, and the first usable response is returned to the client.
+`balancing-reverse-proxy` is a reverse HTTP proxy, but one which allows configuring multiple endpoints (back ends). A request that arrives at the proxy is forwarded to all endpoints, and the first usable response is returned to the client.
 
-This setup is useful in situations where different HTTP servers exist (typically API servers), but which are "flakey" in their processing. To improve the chance that a "good" response is collected, a client can forward their request to `balancing-reverse-proxy`, which fans out to these HTTP servers. The client gets the first correct response.
+This setup is useful in situations where different HTTP(s) servers exist (typically API servers), but which are "flakey" in their processing. To improve the chance that a "good" response is collected, a client can forward their request to `balancing-reverse-proxy`, which fans out to these HTTP servers. The client gets the first correct response.
 
 ## Invocation
 
@@ -78,4 +74,4 @@ The log on terminal 2 (where the balancer runs) will show what's happening. Exam
 2023/11/16 15:43:37 endpoint "http://localhost:8000" sent 25 bytes (status: 200)
 ```
 
-In this case the first endpoint that was asked returned an internal server error (status 500). The second one returned OK, so that answer went to the client (in our test `curl`). The last two endpoints also sent replies, one with status 500 and the other with 200, but these were discarded.
+In this case the first endpoint that replied returned an internal server error (status 500). The second one returned OK, so that answer went to the client (in our test `curl`). The last two endpoints also sent replies, one with status 500 and the other with 200, but these were discarded.
