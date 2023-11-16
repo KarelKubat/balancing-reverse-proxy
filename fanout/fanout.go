@@ -55,8 +55,7 @@ func (f *Fanout) fanoutParallel(w http.ResponseWriter, req *http.Request) {
 	terminalSeen := false
 	for er := range ch {
 		if !terminalSeen && f.term.IsStop(er.Status) {
-			log.Printf("endpoint returned a terminating status %v, discarding others", er.Status)
-			w.Write(er.Body)
+			sendResponse(w, er)
 			terminalSeen = true
 		}
 	}
@@ -71,10 +70,9 @@ func (f *Fanout) fanoutSerial(w http.ResponseWriter, req *http.Request) {
 	for _, endp := range f.ends {
 		ers = append(ers, forwardToEndpoint(endp, w, req))
 	}
-	for i, er := range ers {
+	for _, er := range ers {
 		if f.term.IsStop(er.Status) {
-			log.Printf("endpoint %v returned a terminating status %v, discarding others", i, er.Status)
-			w.Write(er.Body)
+			sendResponse(w, er)
 			return
 		}
 	}
@@ -86,4 +84,12 @@ func forwardToEndpoint(endp endpoints.Endpoint, w http.ResponseWriter, req *http
 	er := endpointresponse.New(endp.URL, w.Header())
 	endp.Proxy.ServeHTTP(er, req)
 	return er
+}
+
+func sendResponse(w http.ResponseWriter, er *endpointresponse.EndpointResponse) {
+	log.Printf("endpoint returned a terminating status %v, discarding others", er.Status)
+	if er.Status != http.StatusOK {
+		http.Error(w, "", er.Status)
+	}
+	w.Write(er.Body)
 }
