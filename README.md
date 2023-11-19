@@ -4,6 +4,7 @@
 - [Invocation](#invocation)
   - [Minimal invocation](#minimal-invocation)
   - [When does <code>balancing-reverse-proxy</code> return a response to the client?](#when-does-balancing-reverse-proxy-return-a-response-to-the-client)
+  - [Fanning out](#fanning-out)
   - [Other options](#other-options)
 - [This is work in progress](#this-is-work-in-progress)
 - [A simple test](#a-simple-test)
