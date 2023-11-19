@@ -18,7 +18,7 @@ var (
 	flagEndpoints         = flag.String("endpoints", "", "comma-separated list of endpoints, ex. 'https://one.com,https://two.com'")
 	flagAddress           = flag.String("address", ":8080", "address to bind this proxy")
 	flagTerminalResponses = flag.String("terminal-responses", "100,200,300,400", "HTTP statuses that are considered terminal (i.e., that endpoint's response is taken)")
-	flagParallelWorkers   = flag.Bool("parallel-workers", true, "when true, workers for endpoints start in parallel, else in sequence")
+	flagFanout            = flag.Bool("fanout", false, "when true, workers for endpoints start in parallel, else in sequence")
 	flagLogPrefix         = flag.String("log-prefix", "balancing-reverse-proxy", "prefix for log statements")
 )
 
@@ -57,7 +57,7 @@ func main() {
 	check(err)
 
 	// Instantiate the fanout engine.
-	f := fanout.New(*flagParallelWorkers, ends, term)
+	f := fanout.New(*flagFanout, ends, term)
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		f.Run(w, req)
 	})
