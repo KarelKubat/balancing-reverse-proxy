@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/KarelKubat/balancing-reverse-proxy/endpointresponse"
 	"github.com/KarelKubat/balancing-reverse-proxy/endpoints"
@@ -16,7 +17,7 @@ import (
 type Fanout struct {
 	ends   endpoints.Endpoints
 	term   *terminal.Terminal
-	runner func(w http.ResponseWriter, req *http.Request)
+	runner func(w http.ResponseWriter, req *http.Request) int
 }
 
 func New(inParallel bool, ends endpoints.Endpoints, term *terminal.Terminal) *Fanout {
@@ -33,51 +34,63 @@ func New(inParallel bool, ends endpoints.Endpoints, term *terminal.Terminal) *Fa
 }
 
 func (f *Fanout) Run(w http.ResponseWriter, req *http.Request) {
-	log.Printf("serving request %v", req.URL)
-	f.runner(w, req)
+	start := time.Now()
+	i := f.runner(w, req)
+	elapsed := time.Now().Sub(start)
+	log.Printf("request %v served in %v by endpoint %v", req.URL, elapsed, i)
 }
 
-func (f *Fanout) fanoutParallel(w http.ResponseWriter, req *http.Request) {
-	ch := make(chan *endpointresponse.EndpointResponse)
+type parallelResponse struct {
+	resp       *endpointresponse.EndpointResponse
+	endpointNr int
+}
+
+func (f *Fanout) fanoutParallel(w http.ResponseWriter, req *http.Request) int {
+	ch := make(chan *parallelResponse)
 	var wg sync.WaitGroup
-	for _, endp := range f.ends {
+	for i, endp := range f.ends {
 		wg.Add(1)
-		go func(endp endpoints.Endpoint) {
+		go func(endp endpoints.Endpoint, endpointNr int) {
 			defer wg.Done()
-			ch <- forwardToEndpoint(endp, w, req)
-		}(endp)
+			ch <- &parallelResponse{
+				resp:       forwardToEndpoint(endp, w, req),
+				endpointNr: endpointNr,
+			}
+		}(endp, i)
 	}
 	go func() {
 		wg.Wait()
 		close(ch)
 	}()
 
-	terminalSeen := false
+	endpointNr := -1 // assume all endpoints failed
 	for er := range ch {
-		if !terminalSeen && f.term.IsStop(er.Status) {
-			sendResponse(w, er)
-			terminalSeen = true
+		if endpointNr == -1 && f.term.IsStop(er.resp.Status) {
+			sendResponse(w, er.resp)
+			endpointNr = er.endpointNr
 		}
 	}
-	if !terminalSeen {
+	if endpointNr == -1 {
 		log.Printf("endpoints failed to return a valid answer, returning %v", http.StatusInternalServerError)
 		w.WriteHeader(http.StatusInternalServerError)
 	}
+	return endpointNr
 }
 
-func (f *Fanout) fanoutSerial(w http.ResponseWriter, req *http.Request) {
+func (f *Fanout) fanoutSerial(w http.ResponseWriter, req *http.Request) int {
 	var ers []*endpointresponse.EndpointResponse
 	for _, endp := range f.ends {
 		ers = append(ers, forwardToEndpoint(endp, w, req))
 	}
-	for _, er := range ers {
+	for i, er := range ers {
 		if f.term.IsStop(er.Status) {
 			sendResponse(w, er)
-			return
+			return i
 		}
 	}
 	log.Printf("endpoints failed to return a valid answer, returning %v", http.StatusInternalServerError)
 	w.WriteHeader(http.StatusInternalServerError)
+	return -1
 }
 
 func forwardToEndpoint(endp endpoints.Endpoint, w http.ResponseWriter, req *http.Request) *endpointresponse.EndpointResponse {
@@ -87,7 +100,7 @@ func forwardToEndpoint(endp endpoints.Endpoint, w http.ResponseWriter, req *http
 }
 
 func sendResponse(w http.ResponseWriter, er *endpointresponse.EndpointResponse) {
-	log.Printf("endpoint returned a terminating status %v, discarding others", er.Status)
+	// log.Printf("endpoint returned a terminating status %v, discarding others", er.Status)
 	if er.Status != http.StatusOK {
 		http.Error(w, "", er.Status)
 	}
