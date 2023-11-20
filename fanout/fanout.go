@@ -36,7 +36,7 @@ func New(inParallel bool, ends endpoints.Endpoints, term *terminal.Terminal) *Fa
 func (f *Fanout) Run(w http.ResponseWriter, req *http.Request) {
 	start := time.Now()
 	i := f.runner(w, req)
-	elapsed := time.Now().Sub(start)
+	elapsed := time.Since(start)
 	log.Printf("request %v served in %v by endpoint %v", req.URL, elapsed, i)
 }
 
