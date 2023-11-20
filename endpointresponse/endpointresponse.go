@@ -4,7 +4,6 @@
 package endpointresponse
 
 import (
-	"log"
 	"net/http"
 )
 
@@ -30,10 +29,10 @@ func (e *EndpointResponse) Header() http.Header {
 
 func (e *EndpointResponse) Write(b []byte) (int, error) {
 	if e.Status == 0 {
-		log.Printf("endpoint %q sent a first write, assuming status OK", e.URL)
+		// log.Printf("endpoint %q sent a first write, assuming status OK", e.URL)
 		e.Status = http.StatusOK
 	}
-	log.Printf("endpoint %q sent %v bytes (status: %v)", e.URL, len(b), e.Status)
+	// log.Printf("endpoint %q sent %v bytes (status: %v)", e.URL, len(b), e.Status)
 	e.Body = append(e.Body, b...)
 	return len(e.Body), nil
 }
