@@ -31,7 +31,8 @@ var (
 const (
 	usage = `
 Minimum usage: balancing-reverse-proxy --endpoints=URLs
-Flags may be abbreviated, e.g. "-e" for "-endpoints". Available flags are:
+Flags may be abbreviated, e.g. "-e" for "-endpoints", but abbreviations must be unique ("-log" could mean many things, "-log-f" is okay).
+Available flags are:
 
 `
 )
