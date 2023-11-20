@@ -3,6 +3,7 @@
 package endpoints
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/url"
@@ -21,6 +22,9 @@ type Endpoints []Endpoint
 func New(set string) (Endpoints, error) {
 	var e Endpoints
 	for i, endp := range strings.Split(set, ",") {
+		if endp == "" {
+			return e, errors.New("empty endpoint")
+		}
 		log.Printf("configuring endpoint %v: %q", i, endp)
 		target, err := url.Parse(endp)
 		if err != nil {
