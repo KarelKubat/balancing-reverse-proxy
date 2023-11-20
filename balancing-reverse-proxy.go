@@ -40,7 +40,7 @@ func main() {
 	// Parse commandline.
 	flagnames.Patch()
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, usage)
+		fmt.Fprint(os.Stderr, usage)
 		flag.PrintDefaults()
 		os.Exit(1)
 	}
