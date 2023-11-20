@@ -4,6 +4,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -20,6 +21,11 @@ var (
 	flagTerminalResponses = flag.String("terminal-responses", "100,200,300,400", "HTTP statuses that are considered terminal (i.e., that endpoint's response is taken)")
 	flagFanout            = flag.Bool("fanout", false, "when true, workers for endpoints start in parallel, else in sequence")
 	flagLogPrefix         = flag.String("log-prefix", "balancing-reverse-proxy", "prefix for log statements")
+	flagLogFile           = flag.String("log-file", "stdout", "log output, a true file to append, or `stdout` or `stderr`")
+	flagLogDate           = flag.Bool("log-date", true, "when true, emit the date when logging")
+	flagLogTime           = flag.Bool("log-time", true, "when true, emit the time when logging")
+	flagLogMsec           = flag.Bool("log-msec", false, "when true, emit the microseconds when logging (forces -log-time)")
+	flagLogUTC            = flag.Bool("log-utc", false, "when true, log date and/or time in UTC rather than localtime")
 )
 
 const (
@@ -42,11 +48,7 @@ func main() {
 	if *flagEndpoints == "" || flag.NArg() != 0 || *flagTerminalResponses == "" {
 		flag.Usage()
 	}
-
-	// Logging.
-	if *flagLogPrefix != "" {
-		log.SetPrefix(*flagLogPrefix + " ")
-	}
+	setupLogging()
 
 	// Which of https://developer.mozilla.org/en-US/docs/Web/HTTP/Status indicate that an endpoint's response should be given to the caller?
 	term, err := terminal.New(*flagTerminalResponses)
@@ -69,8 +71,45 @@ func main() {
 	}
 }
 
+// check is a helper to abort main() when an error happens.
 func check(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// setupLogging is a helper to act on flags -log-date etc.
+func setupLogging() {
+	if *flagLogPrefix != "" {
+		log.SetPrefix(*flagLogPrefix + " ")
+	}
+
+	var logFlags int
+	if *flagLogDate {
+		logFlags |= log.Ldate
+	}
+	if *flagLogTime {
+		logFlags |= log.Ltime
+	}
+	if *flagLogMsec {
+		logFlags |= log.Ltime
+		logFlags |= log.Lmicroseconds
+	}
+	if *flagLogUTC {
+		logFlags |= log.LUTC
+	}
+	log.SetFlags(logFlags)
+
+	var wr io.Writer
+	switch *flagLogFile {
+	case "stdout":
+		wr = os.Stdout
+	case "stderr":
+		wr = os.Stderr
+	default:
+		var err error
+		wr, err = os.OpenFile(*flagLogFile, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0644)
+		check(err)
+	}
+	log.SetOutput(wr)
 }

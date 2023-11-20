@@ -27,11 +27,11 @@ This setup is useful in situations where different HTTP(s) servers exist (typica
 
 The "fitness" of an endpoint's response is determined by the status that an end point sends. The default is that any HTTP status in the 100's, 200's, 300's or 400's range is a valid outcome and is returned to the client. An endpoint's response is only discarded when the HTTP status is in the 500's range. This can be changed using the flag `-terminal-responses` (shorthand `-t`).
 
-Assume that some APIs are hosted on `https://one.com/apis`. There is a mirror at `https://two.com/public-apis` but it's incomplete: for some calls it will return a status 400 (not found). If that happens then `balancing-reverse-proxy` should **not** take that as a terminating response, but should wait what `one.com` returns.
+Assume that some APIs are hosted on `https://one.com/apis`. There is a mirror at `https://two.com/public-apis` but it's incomplete: for some calls it will return a status 400 (not found). If that happens then `balancing-reverse-proxy` should **not** take that as a terminating response, but should take what `one.com` returns.
 
 Flag `-terminal-responses` is a comma-separated list of "hundreds", e.g., `100,200,300`. Each number must be a multiple of a hundred, and means that **all** HTTP statuses in the range of that number, up to and including +99, indicate that such an endpoint response is eligible for the client.
 
-The flag then becomes: `-terminal-responses 100,200,300`. That means that once an endpoint is (a) first to return a response, (b) the HTTP status of the response is 100-199, 200-299 and 300-399 (not all of these exist in the wild), that endpoint's response will be passed to the client, and other responses will be discarded.
+The flag then becomes: `-terminal-responses 100,200,300`. That means that once an endpoint returns 100-199, 200-299 and 300-399 (not all of these exist in the wild), that endpoint's response will be passed to the client, and other responses will be discarded.
 
 ### Fanning out
 
@@ -40,6 +40,19 @@ Presence of the flag `-fanout` forwards a client's request to **all** endpoints 
 The default is not to fan out: the request is sent to the first endpoint, then if needed to the second one, and so on. This mode is useful when e.g. the endpoints host per-tick paid APIs, and you don't want to needlessly call them.
 
 ### Other options
+
+By default actions are logged to `stdout` with a date and time stamp. More logging options can be set using the flags `-log-*`, e.g., `-log-file` to redirect to a file, `-log-msec` to include a microsecond stamp. Run `balancing-reverse-proxy` without arguments to see the flags.
+
+To send the output to the system logs, the utility `logger` can be used. Example:
+
+```shell
+# Logger supplies the date and time, no need to repeat it. `logger -t` generates a 
+# string tag. The output will probably go to /var/log/user.log (depending on your
+# configuration).
+# $OTHER_FLAGS must at a minimum define the endpoints.
+balancing-reverse-proxy -log-time=false -log-date=false \
+  $OTHER_FLAGS | logger -t balancing-reverse-proxy
+```
 
 To see other flags, just start `balancing-reverse-proxy` without arguments. A list will be shown.
 
