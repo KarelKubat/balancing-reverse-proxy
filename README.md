@@ -10,7 +10,7 @@
 - [A simple test](#a-simple-test)
 <!-- /toc -->
 
-`balancing-reverse-proxy` is a reverse HTTP proxy, but one which allows configuring multiple endpoints (back ends). A request that arrives at the proxy is resolved at all endpoints, and the first usable response is returned to the client.
+`balancing-reverse-proxy` is a reverse HTTP proxy, but one which allows configuring multiple endpoints (back ends). A request that arrives at the proxy is resolved at these endpoints, and the first usable response is returned to the client.
 
 This setup is useful in situations where different HTTP(s) servers exist (typically API servers), but which are "flakey" in their processing. To improve the chance that a "good" response is collected, a client can forward their request to `balancing-reverse-proxy` to have the request processed on one or more  HTTP servers. The client gets the first correct response.
 
@@ -27,11 +27,12 @@ This setup is useful in situations where different HTTP(s) servers exist (typica
 
 The "fitness" of an endpoint's response is determined by the status that an end point sends. The default is that any HTTP status in the 100's, 200's, 300's or 400's range is a valid outcome and is returned to the client. An endpoint's response is only discarded when the HTTP status is in the 500's range. This can be changed using the flag `-terminal-responses` (shorthand `-t`).
 
-Assume that some APIs are hosted on `https://one.com/apis`. There is a mirror at `https://two.com/public-apis` but it's incomplete: for some calls it will return a status 400 (not found). If that happens then `balancing-reverse-proxy` should **not** take that as a terminating response, but should take what `one.com` returns.
+Flag `-terminal-responses` is a comma-separated list of "hundreds" and defaults to `100,200,300,400`. Each number must be a multiple of a hundred, and means that **all** HTTP statuses in the range of that number, up to and including +99, indicate that such an endpoint response is eligible for the client.
 
-Flag `-terminal-responses` is a comma-separated list of "hundreds", e.g., `100,200,300`. Each number must be a multiple of a hundred, and means that **all** HTTP statuses in the range of that number, up to and including +99, indicate that such an endpoint response is eligible for the client.
+For example:
 
-The flag then becomes: `-terminal-responses 100,200,300`. That means that once an endpoint returns 100-199, 200-299 and 300-399 (not all of these exist in the wild), that endpoint's response will be passed to the client, and other responses will be discarded.
+- Assume that some APIs are hosted on `https://one.com/apis`. There is a mirror at `https://two.com/public-apis` but it's incomplete: for some calls it will return a status 400 (not found). If that happens then `balancing-reverse-proxy` should **not** take that as a terminating response, but should use what `one.com` returns.
+- The flag then becomes: `-terminal-responses 100,200,300`. That means that once an endpoint returns 100-199, 200-299 and 300-399 (not all of these exist in the wild), that endpoint's response will be passed to the client, and other responses will be discarded.
 
 ### Fanning out
 
@@ -55,14 +56,6 @@ balancing-reverse-proxy -log-time=false -log-date=false \
 ```
 
 To see other flags, just start `balancing-reverse-proxy` without arguments. A list will be shown.
-
-## This is work in progress
-
-This version is a proof of concept. Future changes will include:
-
-- Tests
-- Possibly better modularization
-- Better logging (this version logs all to `stdout`, maybe we need less logging)
 
 ## A simple test
 
