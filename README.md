@@ -93,3 +93,9 @@ balancing-reverse-proxy 2023/11/20 12:03:56 endpoints failed to return a valid a
 ```
 
 The first three requests were served by endpoints 0 and 1. The last request indicates that no endpoint successfully fulfilled the request and `balancing-reverse-proxy` replied to the client with a 500 Server Error.
+
+For a more elaborate test start `dummy-http-server/multi-test.sh`. This is is a test that stops by itself, and:
+
+- Starts three local HTTP servers on the ports 8000, 8001 and 8002,
+- Uses these as endpoints for a `balancing-http-proxy` process which itself runs on port 8080,
+- Has `curl` call the proxy.
