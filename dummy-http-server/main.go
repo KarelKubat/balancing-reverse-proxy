@@ -1,25 +1,51 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 )
 
+var (
+	flagAddress         = flag.String("address", ":8000", "address to bind to")
+	flagStopAfter       = flag.Duration("stop-after", 0, "stop server once the duration expires, 0 is go on forever")
+	flagDelayResponding = flag.Bool("delay-responding", true, "when true, fake a delay in processing")
+)
+
 func hello(w http.ResponseWriter, req *http.Request) {
-	sleepTime := time.Duration(rand.Intn(1000000)) * time.Microsecond
-	sendErr := rand.Intn(100) < 25
-	log.Printf("will serve %v after %v, error:%v", req.URL, sleepTime, sendErr)
-	time.Sleep(sleepTime)
+	var sendErr bool
+	var sleepTime time.Duration
+	if *flagDelayResponding {
+		sleepTime = time.Duration(rand.Intn(1000000)) * time.Microsecond
+		sendErr = rand.Intn(100) < 25
+		log.Printf("will serve %v after %v, error:%v", req.URL, sleepTime, sendErr)
+		time.Sleep(sleepTime)
+	}
 	if sendErr {
 		w.WriteHeader(http.StatusInternalServerError)
 	}
-	w.Write([]byte(fmt.Sprintf("Hello, world after %v!", sleepTime)))
+	var msg string
+	if sleepTime == 0 {
+		msg = fmt.Sprintf("Hello, world from %v/%v\n", *flagAddress, req.URL)
+	} else {
+		msg = fmt.Sprintf("Hello, world from %v/%v after %v\n", *flagAddress, req.URL, sleepTime)
+	}
+	w.Write([]byte(msg))
 }
 
 func main() {
+	flag.Parse()
+	if *flagStopAfter > 0 {
+		go func() {
+			time.Sleep(*flagStopAfter)
+			fmt.Printf("stopping server on %q after %v\n", *flagAddress, *flagStopAfter)
+			os.Exit(0)
+		}()
+	}
 	http.HandleFunc("/", hello)
-	http.ListenAndServe(":8000", nil)
+	http.ListenAndServe(*flagAddress, nil)
 }
