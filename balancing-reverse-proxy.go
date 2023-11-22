@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/KarelKubat/balancing-reverse-proxy/endpoints"
 	"github.com/KarelKubat/balancing-reverse-proxy/fanout"
@@ -26,6 +27,7 @@ var (
 	flagLogTime           = flag.Bool("log-time", true, "when true, emit the time when logging")
 	flagLogMsec           = flag.Bool("log-msec", false, "when true, emit the microseconds when logging (forces -log-time)")
 	flagLogUTC            = flag.Bool("log-utc", false, "when true, log date and/or time in UTC rather than localtime")
+	flagStopAfter         = flag.Duration("stop-after", 0, "stop once the duration expires, 0 is go on forever (for testing)")
 )
 
 const (
@@ -71,6 +73,15 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 		f.Run(w, req)
 	})
+
+	// If a stop is requested..
+	if *flagStopAfter > 0 {
+		go func() {
+			time.Sleep(*flagStopAfter)
+			fmt.Printf("stopping balancing-reverse-proxy after %v\n", *flagStopAfter)
+			os.Exit(0)
+		}()
+	}
 
 	// Serve.
 	log.Printf("starting on: %q", *flagAddress)
