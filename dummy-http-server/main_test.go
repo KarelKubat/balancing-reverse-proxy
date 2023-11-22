@@ -5,5 +5,5 @@ import (
 )
 
 func TestAll(t *testing.T) {
-	// TODO: Add tests
+	// Nothing to test here, this just ensures that main.go builds.
 }
