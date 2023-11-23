@@ -6,12 +6,12 @@ package fanout
 import (
 	"log"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/KarelKubat/balancing-reverse-proxy/endpointresponse"
 	"github.com/KarelKubat/balancing-reverse-proxy/endpoints"
 	"github.com/KarelKubat/balancing-reverse-proxy/terminal"
+	"github.com/KarelKubat/puddle"
 )
 
 type Fanout struct {
@@ -40,31 +40,33 @@ func (f *Fanout) Run(w http.ResponseWriter, req *http.Request) {
 	log.Printf("request %v served in %v by endpoint %v", req.URL, elapsed, i)
 }
 
-type parallelResponse struct {
+type puddleResponse struct {
 	resp       *endpointresponse.EndpointResponse
 	endpointNr int
 }
 
-func (f *Fanout) fanoutParallel(w http.ResponseWriter, req *http.Request) int {
-	ch := make(chan *parallelResponse)
-	var wg sync.WaitGroup
-	for i, endp := range f.ends {
-		wg.Add(1)
-		go func(endp endpoints.Endpoint, endpointNr int) {
-			defer wg.Done()
-			ch <- &parallelResponse{
-				resp:       forwardToEndpoint(endp, w, req),
-				endpointNr: endpointNr,
-			}
-		}(endp, i)
+func puddleWorker(a puddle.Args) any {
+	// These MUST be the right types in the right order, just as the below p.Work() sends them
+	nr := a[0].(int)
+	endp := a[1].(endpoints.Endpoint)
+	w := a[2].(http.ResponseWriter)
+	req := a[3].(*http.Request)
+	return puddleResponse{
+		resp:       forwardToEndpoint(endp, w, req),
+		endpointNr: nr,
 	}
-	go func() {
-		wg.Wait()
-		close(ch)
-	}()
+}
 
+func (f *Fanout) fanoutParallel(w http.ResponseWriter, req *http.Request) int {
+	p := puddle.New()
+	for i, endp := range f.ends {
+		// These MUST BE the right types in the right order so that puddleWorker
+		// can decode them: ------------ >  >>>>  >  >>>
+		p.Work(puddleWorker, puddle.Args{i, endp, w, req})
+	}
 	endpointNr := -1 // assume all endpoints failed
-	for er := range ch {
+	for v := range p.Out() {
+		er := v.(puddleResponse)
 		if endpointNr == -1 && f.term.IsStop(er.resp.Status) {
 			sendResponse(w, er.resp)
 			endpointNr = er.endpointNr

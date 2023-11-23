@@ -1,2 +1,4 @@
 github.com/KarelKubat/flagnames v1.0.0 h1:ZRFCqTVz8bpJJkKKi8CYznQNflvTNHmZazcdyC+JyqE=
 github.com/KarelKubat/flagnames v1.0.0/go.mod h1:8UpAWVPX75cXfjsxHoP5T/8UzBkiXiEm4CED2tRLRns=
+github.com/KarelKubat/puddle v0.0.1 h1:MKoJTg857Rto/jThOOvXg9ZWLR1sFiOWZO3Vvab7k18=
+github.com/KarelKubat/puddle v0.0.1/go.mod h1:APqGDLB6q6IF2AA7UslPUx5Ex3Eg9bwB5tdoCnzKB/g=
