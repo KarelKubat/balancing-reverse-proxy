@@ -1,3 +1,4 @@
+// Package main provides a dummy HTTP server for testing the balancing reverse proxy.
 package main
 
 import (
@@ -14,6 +15,7 @@ var (
 	flagAddress         = flag.String("address", ":8000", "address to bind to")
 	flagStopAfter       = flag.Duration("stop-after", 0, "stop server once the duration expires, 0 is go on forever")
 	flagDelayResponding = flag.Bool("delay-responding", true, "when true, fake a delay in processing")
+	flagRandomErrors    = flag.Bool("random-errors", true, "simulate an error in (on average) 25% of cases")
 )
 
 func hello(w http.ResponseWriter, req *http.Request) {
@@ -30,9 +32,9 @@ func hello(w http.ResponseWriter, req *http.Request) {
 	}
 	var msg string
 	if sleepTime == 0 {
-		msg = fmt.Sprintf("Hello, world from %v/%v\n", *flagAddress, req.URL)
+		msg = fmt.Sprintf("Hello, world from %v%v\n", *flagAddress, req.URL)
 	} else {
-		msg = fmt.Sprintf("Hello, world from %v/%v after %v\n", *flagAddress, req.URL, sleepTime)
+		msg = fmt.Sprintf("Hello, world from %v%v after %v\n", *flagAddress, req.URL, sleepTime)
 	}
 	w.Write([]byte(msg))
 }
