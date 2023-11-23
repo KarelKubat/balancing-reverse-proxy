@@ -7,6 +7,8 @@
   - [Fanning out](#fanning-out)
   - [Other options](#other-options)
 - [A simple test](#a-simple-test)
+  - [DIY](#diy)
+  - [Provided test shellscript](#provided-test-shellscript)
 <!-- /toc -->
 
 `balancing-reverse-proxy` is a reverse HTTP proxy, but one which allows configuring multiple endpoints (back ends). A request that arrives at the proxy is resolved at these endpoints, and the first usable response is returned to the client.
@@ -46,10 +48,10 @@ By default actions are logged to `stdout` with a date and time stamp. More loggi
 To send the output to the system logs, the utility `logger` can be used. Example:
 
 ```shell
-# Logger supplies the date and time, no need to repeat it. `logger -t` generates a 
-# string tag. The output will probably go to /var/log/user.log (depending on your
-# configuration).
-# $OTHER_FLAGS must at a minimum define the endpoints.
+# Logger supplies the date and time, so that balancing-reverse-proxy should not also
+# send it. The invocation `logger -t $TAG generates a string tag. The output will probably
+# go to /var/log/user.log (depending on your configuration).
+# The placeholder $OTHER_FLAGS must at a minimum define the endpoints.
 balancing-reverse-proxy -log-time=false -log-date=false \
   $OTHER_FLAGS | logger -t balancing-reverse-proxy
 ```
@@ -57,6 +59,8 @@ balancing-reverse-proxy -log-time=false -log-date=false \
 To see other flags, just start `balancing-reverse-proxy` without arguments. A list will be shown.
 
 ## A simple test
+
+### DIY
 
 1. Start in one terminal a dummy HTTP server on port 8000. This server will at random serve errors or not, and will delay the response by a random duration up to 1 second.
 
@@ -70,11 +74,11 @@ To see other flags, just start `balancing-reverse-proxy` without arguments. A li
     go run  --  balancing-reverse-proxy.go -fanout \
       --endpoints http://localhost:8000,http://localhost:8000,http://localhost:8000,http://localhost:8000
 
-    2023/11/16 15:39:15 configuring endpoint 0: "http://localhost:8000"
-    2023/11/16 15:39:15 configuring endpoint 1: "http://localhost:8000"
-    2023/11/16 15:39:15 configuring endpoint 2: "http://localhost:8000"
-    2023/11/16 15:39:15 configuring endpoint 3: "http://localhost:8000"
-    2023/11/16 15:39:15 starting on: ":8080"
+    configuring endpoint 0: "http://localhost:8000"
+    configuring endpoint 1: "http://localhost:8000"
+    configuring endpoint 2: "http://localhost:8000"
+    configuring endpoint 3: "http://localhost:8000"
+    starting on: ":8080"
     ```
 
 3. Start in yet another terminal `curl` to repeatedly hit the balancer. The following Bash command will run until you hit ^C:
@@ -85,17 +89,55 @@ To see other flags, just start `balancing-reverse-proxy` without arguments. A li
 
 The log on terminal 2 (where the balancer runs) will show what's happening. Example:
 
-```
-balancing-reverse-proxy 2023/11/20 12:03:53 request / served in 983.247916ms by endpoint 1
-balancing-reverse-proxy 2023/11/20 12:03:54 request / served in 908.07625ms by endpoint 1
-balancing-reverse-proxy 2023/11/20 12:03:55 request / served in 336.30325ms by endpoint 0
-balancing-reverse-proxy 2023/11/20 12:03:56 endpoints failed to return a valid answer, returning 500
+```plain
+request / served in 983.247916ms by endpoint 1
+request / served in 908.07625ms by endpoint 1
+request / served in 336.30325ms by endpoint 0
+failed to return a valid answer, returning 500
 ```
 
 The first three requests were served by endpoints 0 and 1. The last request indicates that no endpoint successfully fulfilled the request and `balancing-reverse-proxy` replied to the client with a 500 Server Error.
 
-For a more elaborate test start `dummy-http-server/multi-test.sh`. This is is a test that stops by itself, and:
+### Provided test shellscript
 
-- Starts three local HTTP servers on the ports 8000, 8001 and 8002,
-- Uses these as endpoints for a `balancing-http-proxy` process which itself runs on port 8080,
-- Has `curl` call the proxy.
+For a more elaborate test start `dummy-http-server/multi-test.sh`. This is is a test that stops after a few seconds and has the following parts:
+
+- The test starts three local HTTP servers on the ports 8000, 8001 and 8002. These send a oneline response with respectively `Hello, world from localhost:8000`, or `from localhost:8001` or `from localhost:8002`. The web servers stop after 5 seconds.
+- The test starts a `balancing-http-proxy` on port 8080 with the above servers as endpoints. The proxy also stops after 5 seconds.
+- Next, `curl` repeatedly calls the proxy on `http://localhost:8080`, or stops when no valid response is received.
+
+Below is sample output. New runs will produce other outputs given that parallel fanout to endpoints is not deterministic.
+
+```plain
+Hello, world from localhost:8000/
+Hello, world from localhost:8001/
+Hello, world from localhost:8000/
+Hello, world from localhost:8000/
+Hello, world from localhost:8002/
+Hello, world from localhost:8001/
+stopping server on "localhost:8000" after 5s
+Hello, world from localhost:8001/
+Hello, world from localhost:8002/
+Hello, world from localhost:8001/
+Hello, world from localhost:8002/
+stopping server on "localhost:8002" after 5s
+Hello, world from localhost:8001/
+Hello, world from localhost:8001/
+Hello, world from localhost:8001/
+stopping server on "localhost:8001" after 5s
+stopping balancing-reverse-proxy after 5s
+curl: (7) Failed to connect to localhost port 8080 after 0 ms: Couldn't connect to server
+```
+
+- At first, the proxy serves to `curl` whatever appears first: the response from the web server on port 8000, or 8001, or 8002.
+- On line 7 the webserver on port 8000 stops (this is at the 5 second mark). After that, `curl` only receives respnses from the servers on port 8001 and 8002.
+- Line 12 shows that the web server on port 8002 also stops. After that, `curl` only receives responses from the server on port 8001.
+- Near the end both the last web server on port 8001 and the proxy stop.
+
+The test also creates a log file `/tmp/balancing-reverse-proxy-$$.log` (`$$` being a process ID). This log shows the corresponding view from the proxy. For example, at the time when only the webserver on port 8001 is up (last three `Hello World` lines above), the log shows that two endpoints are down, and that the request is successfully served from the remaining one.
+
+```plain
+http: proxy error: dial tcp [::1]:8000: connect: connection refused
+request / served in 807.125µs by endpoint 1
+http: proxy error: dial tcp [::1]:8002: connect: connection refused
+```
